@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobTrack | Analytics</title>
+    <meta
+      name="description"
+      content="Review portfolio-safe job application KPIs, charts, and pending follow-up reminders."
+    />
+    <link rel="stylesheet" href="./styles.css?v=dashboard-trim2" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="./app.js?v=dashboard-trim2" defer></script>
+  </head>
+  <body data-page="analytics">
+    <header class="app-header">
+      <div class="header-inner compact-header">
+        <div>
+          <p class="eyebrow">JobTrack Public Demo</p>
+          <h1>Analytics</h1>
+          <p class="header-copy">
+            Turn Tracker data into KPIs, charts, and pending follow-up reminders.
+          </p>
+        </div>
+        <nav class="page-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="./index.html">
+            <i data-lucide="layout-list" aria-hidden="true"></i>
+            Tracker
+          </a>
+          <a class="nav-link active" href="./analytics.html">
+            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
+            Analytics
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="dashboard-lead" aria-label="Executive dashboard">
+        <article class="dashboard-summary-panel">
+          <p class="eyebrow">Pipeline Snapshot</p>
+          <h2 id="summaryHeadline">Loading pipeline summary</h2>
+          <p class="summary-copy" id="summarySubcopy">
+            Review follow-up pressure, conversion health, and source mix from the current tracker data.
+          </p>
+          <div class="dashboard-metric-grid" aria-label="Pipeline summary metrics">
+            <div class="dashboard-metric">
+              <span>Records</span>
+              <strong id="overviewTotal">--</strong>
+              <small>application records</small>
+            </div>
+            <div class="dashboard-metric">
+              <span>Active</span>
+              <strong id="overviewActive">--</strong>
+              <small>open opportunities</small>
+            </div>
+            <div class="dashboard-metric">
+              <span>Follow-up</span>
+              <strong id="overviewPending14">--</strong>
+              <small>pending 14d+</small>
+            </div>
+            <div class="dashboard-metric">
+              <span>High Attention</span>
+              <strong id="overviewPending30">--</strong>
+              <small>pending 30d+</small>
+            </div>
+          </div>
+          <div class="summary-rate-grid" aria-label="Pipeline conversion rates">
+            <div class="rate-metric">
+              <span>Response Rate</span>
+              <strong id="kpiResponseRate">--</strong>
+              <small>screening or later</small>
+            </div>
+            <div class="rate-metric">
+              <span>Interview Rate</span>
+              <strong id="kpiInterviewRate">--</strong>
+              <small>interview or offer</small>
+            </div>
+            <div class="rate-metric">
+              <span>Rejection Rate</span>
+              <strong id="kpiRejectionRate">--</strong>
+              <small>rejected records</small>
+            </div>
+            <div class="rate-metric">
+              <span>Offer Rate</span>
+              <strong id="kpiOfferRate">--</strong>
+              <small>offer records</small>
+            </div>
+          </div>
+        </article>
+
+        <section class="alerts-panel dashboard-alerts" aria-label="Pending alerts">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Follow-up</p>
+              <h2>Pending Alerts</h2>
+            </div>
+            <div class="followup-stat" aria-label="Average waiting days">
+              <span>Avg Waiting</span>
+              <strong id="kpiWaitingDays">--</strong>
+              <small>days</small>
+            </div>
+          </div>
+          <div class="alert-list" id="pendingAlertList"></div>
+        </section>
+      </section>
+
+      <section class="charts-grid" aria-label="Charts area">
+        <article class="chart-card chart-card-wide">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Trend</p>
+              <h2>Weekly Applications + Response Rate</h2>
+            </div>
+          </div>
+          <div class="chart-frame chart-frame-large">
+            <canvas id="weeklyChart" aria-label="Weekly application bar chart with response rate line"></canvas>
+          </div>
+          <p class="chart-caption">Bars show applications submitted each week. The line shows response rate for those cohorts.</p>
+        </article>
+        <article class="chart-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Source</p>
+              <h2>Platform Distribution</h2>
+            </div>
+          </div>
+          <div class="chart-frame">
+            <canvas id="platformChart" aria-label="Platform distribution chart"></canvas>
+          </div>
+        </article>
+        <article class="chart-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Pipeline</p>
+              <h2>Funnel</h2>
+            </div>
+          </div>
+          <div class="chart-frame">
+            <canvas id="funnelChart" aria-label="Funnel chart"></canvas>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

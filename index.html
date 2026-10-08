@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobTrack | Tracker</title>
+    <meta
+      name="description"
+      content="Manage demo job applications, update workflow status, and save portfolio-safe job tracking data locally."
+    />
+    <link rel="stylesheet" href="./styles.css?v=dashboard-trim2" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="./app.js?v=dashboard-trim2" defer></script>
+  </head>
+  <body data-page="tracker">
+    <header class="app-header">
+      <div class="header-inner compact-header">
+        <div>
+          <p class="eyebrow">JobTrack Public Demo</p>
+          <h1>Tracker</h1>
+          <p class="header-copy">
+            Add applications, update workflow status, and keep all demo interactions in local browser storage.
+          </p>
+        </div>
+        <nav class="page-nav" aria-label="Primary navigation">
+          <a class="nav-link active" href="./index.html">
+            <i data-lucide="layout-list" aria-hidden="true"></i>
+            Tracker
+          </a>
+          <a class="nav-link" href="./analytics.html">
+            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
+            Analytics
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="tracker-layout" aria-label="Application management">
+        <aside class="control-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Input</p>
+              <h2>Add Application</h2>
+            </div>
+          </div>
+          <form class="application-form" id="applicationForm">
+            <label>
+              Company
+              <input id="companyName" name="company_name" type="text" required placeholder="Example Co." />
+            </label>
+            <label>
+              Position
+              <input id="positionTitle" name="position_title" type="text" required placeholder="Frontend Engineer" />
+            </label>
+            <label>
+              Application URL
+              <input
+                id="sourceUrl"
+                name="source_url"
+                type="text"
+                inputmode="url"
+                placeholder="https://www.linkedin.com/jobs/view/..."
+              />
+            </label>
+            <div class="form-grid">
+              <label>
+                Platform
+                <select id="platform" name="platform">
+                  <option>LinkedIn</option>
+                  <option>104</option>
+                  <option>Cake</option>
+                  <option>Yourator</option>
+                  <option>Company Site</option>
+                  <option>Referral</option>
+                  <option>Indeed</option>
+                </select>
+              </label>
+              <label>
+                Status
+                <select id="currentStatus" name="current_status"></select>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>
+                Priority
+                <select id="priority" name="priority">
+                  <option value="high">High</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label>
+                Applied
+                <input id="appliedAt" name="applied_at" type="date" />
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea id="notes" name="notes" rows="4" placeholder="Follow-up notes, interview status, or next action"></textarea>
+            </label>
+            <button class="primary-button" type="submit">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              Add Application
+            </button>
+          </form>
+
+          <div class="panel-divider"></div>
+
+          <div class="section-heading compact-section-heading">
+            <div>
+              <p class="eyebrow">Paste Update</p>
+              <h2>Status Parser</h2>
+            </div>
+          </div>
+          <form class="application-form" id="pasteUpdateForm">
+            <label>
+              Target application
+              <select id="pasteUpdateTarget">
+                <option value="">Auto-detect from message</option>
+              </select>
+            </label>
+            <label>
+              Email or message text
+              <textarea
+                id="pasteUpdateText"
+                rows="5"
+                placeholder="Paste a rejection, offer, or interview update email here"
+              ></textarea>
+            </label>
+            <button class="ghost-button" type="submit">
+              <i data-lucide="scan-text" aria-hidden="true"></i>
+              Parse Update
+            </button>
+            <p class="parser-result" id="parserResult">Matches company names and status keywords locally.</p>
+          </form>
+
+          <div class="panel-divider"></div>
+
+          <div class="control-actions">
+            <button class="ghost-button" id="resetDemoButton" type="button">
+              <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+              Reset Demo
+            </button>
+            <p class="save-indicator" id="saveIndicator">Loaded from demo data</p>
+          </div>
+        </aside>
+
+        <section class="workflow-panel" aria-label="Kanban board">
+          <div class="section-heading kanban-heading">
+            <div>
+              <p class="eyebrow">Workflow</p>
+              <h2>Application Kanban</h2>
+            </div>
+            <div class="summary-strip" aria-label="Workflow summary">
+              <span><strong id="trackerTotal">--</strong> records</span>
+              <span><strong id="trackerActive">--</strong> active</span>
+            </div>
+          </div>
+          <div class="kanban-scrollbar kanban-scrollbar-top" id="kanbanTopScroll" aria-hidden="true">
+            <div class="kanban-scroll-content" id="kanbanTopScrollContent"></div>
+          </div>
+          <div class="kanban-scroll-area" id="kanbanScrollArea">
+            <div class="kanban-board" id="kanbanBoard"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="kanbanColumnTemplate">
+      <article class="kanban-column">
+        <header class="column-header">
+          <div>
+            <span class="status-dot"></span>
+            <h3></h3>
+          </div>
+          <span class="column-count"></span>
+        </header>
+        <div class="card-list"></div>
+      </article>
+    </template>
+
+    <template id="applicationCardTemplate">
+      <article class="application-card" draggable="true">
+        <h4></h4>
+        <p class="company-name"></p>
+        <span class="stage-days"></span>
+      </article>
+    </template>
+
+    <div class="modal-backdrop" id="editModal" hidden>
+      <section class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">Edit Record</p>
+            <h2 id="editModalTitle">Application Details</h2>
+          </div>
+          <button class="icon-button" id="closeEditModal" type="button" aria-label="Close editor">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+        <form class="application-form edit-form" id="editApplicationForm">
+          <input id="editApplicationId" type="hidden" />
+          <label>
+            Company
+            <input id="editCompanyName" type="text" required />
+          </label>
+          <label>
+            Position
+            <input id="editPositionTitle" type="text" required />
+          </label>
+          <label>
+            Application URL
+            <input id="editSourceUrl" type="text" inputmode="url" />
+          </label>
+          <a class="ghost-button source-link-button" id="editSourceLink" href="#" target="_blank" rel="noopener">
+            <i data-lucide="external-link" aria-hidden="true"></i>
+            Open Posting
+          </a>
+          <div class="form-grid">
+            <label>
+              Platform
+              <select id="editPlatform">
+                <option>LinkedIn</option>
+                <option>104</option>
+                <option>Cake</option>
+                <option>Yourator</option>
+                <option>Company Site</option>
+                <option>Referral</option>
+                <option>Indeed</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select id="editCurrentStatus"></select>
+            </label>
+          </div>
+          <div class="form-grid">
+            <label>
+              Priority
+              <select id="editPriority">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label>
+              Applied
+              <input id="editAppliedAt" type="date" />
+            </label>
+          </div>
+          <label>
+            Notes
+            <textarea id="editNotes" rows="5"></textarea>
+          </label>
+          <div class="modal-actions">
+            <button class="ghost-button" id="cancelEditModal" type="button">Cancel</button>
+            <button class="primary-button" type="submit">
+              <i data-lucide="save" aria-hidden="true"></i>
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </body>
+</html>
