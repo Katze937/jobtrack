@@ -182,9 +182,15 @@ h4 {
 
 .tracker-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 3fr);
   gap: 18px;
   align-items: start;
+}
+
+.input-panel {
+  position: sticky;
+  top: 16px;
+  align-self: start;
 }
 
 .control-panel,
@@ -197,9 +203,53 @@ h4 {
 }
 
 .control-panel {
-  position: sticky;
-  top: 16px;
   padding: 20px;
+}
+
+.input-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.input-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 14px 0 18px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.input-tab-button {
+  min-height: 38px;
+  border: 0;
+  border-radius: calc(var(--radius) - 3px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.input-tab-button:hover,
+.input-tab-button:focus-visible {
+  color: var(--ink);
+  outline: 2px solid rgba(15, 118, 110, 0.25);
+  outline-offset: 1px;
+}
+
+.input-tab-button.is-active {
+  background: #fffefb;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(35, 31, 28, 0.08);
+}
+
+.input-tab-panel[hidden] {
+  display: none;
 }
 
 .workflow-panel,
@@ -330,6 +380,12 @@ h4 {
   gap: 10px;
 }
 
+.input-footer-actions {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 .parser-result {
   margin: 0;
   color: var(--muted);
@@ -344,6 +400,29 @@ h4 {
 
 .parser-warning {
   color: var(--amber);
+}
+
+.smart-import-form {
+  align-content: start;
+}
+
+.smart-paste-box {
+  min-height: 150px;
+  border: 1px dashed rgba(15, 118, 110, 0.5);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.smart-paste-box:hover,
+.smart-paste-box:focus-visible,
+.smart-paste-box.is-over {
+  border-color: var(--brand);
+  background: rgba(15, 118, 110, 0.1);
+  outline: none;
+}
+
+.smart-paste-box.is-busy {
+  cursor: progress;
+  opacity: 0.78;
 }
 
 .summary-strip {
@@ -981,7 +1060,7 @@ h4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .control-panel {
+  .input-panel {
     position: static;
   }
 
@@ -1021,6 +1100,10 @@ h4 {
   .page-nav {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .input-panel-grid {
+    grid-template-columns: 1fr;
   }
 
   .form-grid,

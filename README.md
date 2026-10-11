@@ -14,6 +14,7 @@ This is not a React project. It is a static `HTML + CSS + JavaScript` applicatio
   - `Analytics` for KPI summaries, charts, and follow-up alerts
 - Add application records with company, role, platform, status, priority, notes, and application URL
 - Store LinkedIn, company career page, or other posting links for later follow-up
+- Import job posting or application screenshots with browser-side OCR that fills the Add Application form for review
 - Click a Kanban card to open an edit modal
 - HTML5 drag-and-drop Kanban workflow
 - Workflow statuses:
@@ -31,7 +32,8 @@ This is not a React project. It is a static `HTML + CSS + JavaScript` applicatio
   - KPI calculations
   - charts
   - `localStorage`
-- Paste Update parser for rejection, offer, interview, screening, and withdrawn messages
+- Smart Import parser for pasted text, full emails, dropped images, and uploaded screenshots
+- OCR-assisted parsing for company, position, platform, status, source URL, and notes
 - Case-insensitive company matching for pasted email updates
 - Terminal statuses stop the day count at the date the record becomes `offer`, `rejected`, or `withdrawn`
 - Analytics dashboard with:
@@ -54,6 +56,7 @@ This is not a React project. It is a static `HTML + CSS + JavaScript` applicatio
 - CSS
 - JavaScript
 - Chart.js
+- Tesseract.js
 - Browser `localStorage`
 - Static JSON sample data
 
@@ -122,11 +125,19 @@ The Analytics page is designed as a compact dashboard rather than a long report 
 - Platform Distribution shows where applications were submitted.
 - Funnel shows how records move from applied to response, interview, and offer.
 
-## Paste Update Detection Rules
+## Smart Import Detection Rules
 
-The Paste Update feature is rule-based and local-only. It does not call an API and does not send email content to a server.
+The Smart Import feature is rule-based and local-only. It does not call an API and does not send email content or screenshots to a server.
 
-To support more companies and email styles, update these arrays in `app.js`:
+The shared Smart Import box can handle:
+
+- pasted rejection, offer, interview, screening, or withdrawn emails
+- pasted job posting text
+- pasted, dropped, or uploaded screenshots
+
+Text is parsed directly. Images are read in the browser with Tesseract.js, then the recognized text is placed into the same Smart Import box and analyzed by the same rules.
+
+To support more companies and message styles, update these arrays in `app.js`:
 
 - `STATUS_DETECTION_RULES`: add wording that should map to `rejected`, `offer`, `withdrawn`, `interview`, or `screening`
 - `COMPANY_EXTRACTION_PATTERNS`: add regular expressions for company-name formats that appear in email bodies or signatures
@@ -138,7 +149,21 @@ Examples:
 
 Company matching is case-insensitive, so `PolicyMe`, `policyme`, and `POLICYME` are treated as the same company when matching existing records.
 
-If an email does not include a clear company name, the user can choose a target application manually from the Paste Update dropdown.
+If an email does not include a clear company name, the user can choose a target application manually from the Smart Import dropdown.
+
+## Screenshot OCR Import
+
+The Tracker page includes screenshot support inside Smart Import. Users can upload, drag-and-drop, or paste an image of a job posting or application confirmation into the shared input flow.
+
+The OCR flow:
+
+1. Reads the image text in the browser with Tesseract.js.
+2. Places recognized text into the Smart Import box.
+3. Updates a matched existing record if the text is a status update.
+4. Otherwise extracts likely company, position, platform, status, source URL, and notes.
+5. Fills the Add Application form for review before the user creates a record.
+
+The OCR feature is intentionally review-first. It does not automatically create a record because screenshots can be noisy and OCR may misread company names or job titles.
 
 ## Privacy Design
 
@@ -147,6 +172,7 @@ This public demo is designed to avoid real personal or job-search data.
 - All companies, job titles, links, salary ranges, and notes are sample data.
 - The project does not include real names, email addresses, phone numbers, resumes, interview content, or internal company information.
 - Changes made in the demo are saved only in the user's browser through `localStorage`.
+- Screenshot OCR runs in the browser and is used to fill the form for review.
 - The Reset Demo button clears the demo state and reloads `data/sample_applications.json`.
 - No backend API is required for the public version.
 
@@ -215,6 +241,7 @@ Suggested portfolio talking points:
 - Built an interactive Kanban tracker with drag-and-drop state updates
 - Defined KPI logic for response rate, interview rate, rejection rate, offer rate, and waiting days
 - Created a dashboard that combines workflow status, follow-up risk, trend analysis, source distribution, and funnel analysis
+- Added browser-side OCR import to demonstrate practical automation without a custom backend
 - Implemented a privacy-aware public demo using fake data and browser-local storage
 - Prepared a static deployment path for GitHub and Cloudflare Pages
 

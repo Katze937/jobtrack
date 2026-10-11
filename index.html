@@ -8,9 +8,10 @@
       name="description"
       content="Manage demo job applications, update workflow status, and save portfolio-safe job tracking data locally."
     />
-    <link rel="stylesheet" href="./styles.css?v=dashboard-trim2" />
+    <link rel="stylesheet" href="./styles.css?v=input-tabs" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-    <script src="./app.js?v=dashboard-trim2" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js" defer></script>
+    <script src="./app.js?v=input-tabs" defer></script>
   </head>
   <body data-page="tracker">
     <header class="app-header">
@@ -37,107 +38,147 @@
 
     <main class="page-shell">
       <section class="tracker-layout" aria-label="Application management">
-        <aside class="control-panel">
+        <aside class="control-panel input-panel">
           <div class="section-heading">
             <div>
               <p class="eyebrow">Input</p>
-              <h2>Add Application</h2>
+              <h2>Application Input</h2>
             </div>
           </div>
-          <form class="application-form" id="applicationForm">
-            <label>
-              Company
-              <input id="companyName" name="company_name" type="text" required placeholder="Example Co." />
-            </label>
-            <label>
-              Position
-              <input id="positionTitle" name="position_title" type="text" required placeholder="Frontend Engineer" />
-            </label>
-            <label>
-              Application URL
-              <input
-                id="sourceUrl"
-                name="source_url"
-                type="text"
-                inputmode="url"
-                placeholder="https://www.linkedin.com/jobs/view/..."
-              />
-            </label>
-            <div class="form-grid">
+          <div class="input-tabs" role="tablist" aria-label="Application input method">
+            <button
+              class="input-tab-button is-active"
+              id="manualEntryTab"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="manualEntryPanel"
+              data-input-tab="manual"
+            >
+              Manual Entry
+            </button>
+            <button
+              class="input-tab-button"
+              id="smartImportTab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="smartImportPanel"
+              data-input-tab="smart"
+            >
+              Smart Import
+            </button>
+          </div>
+          <div class="input-panel-grid">
+            <form
+              class="application-form input-tab-panel is-active"
+              id="applicationForm"
+              role="tabpanel"
+              aria-labelledby="manualEntryTab"
+              data-input-panel="manual"
+            >
               <label>
-                Platform
-                <select id="platform" name="platform">
-                  <option>LinkedIn</option>
-                  <option>104</option>
-                  <option>Cake</option>
-                  <option>Yourator</option>
-                  <option>Company Site</option>
-                  <option>Referral</option>
-                  <option>Indeed</option>
+                Company
+                <input id="companyName" name="company_name" type="text" required placeholder="Example Co." />
+              </label>
+              <label>
+                Position
+                <input id="positionTitle" name="position_title" type="text" required placeholder="Frontend Engineer" />
+              </label>
+              <label>
+                Application URL
+                <input
+                  id="sourceUrl"
+                  name="source_url"
+                  type="text"
+                  inputmode="url"
+                  placeholder="https://www.linkedin.com/jobs/view/..."
+                />
+              </label>
+              <div class="form-grid">
+                <label>
+                  Platform
+                  <select id="platform" name="platform">
+                    <option>LinkedIn</option>
+                    <option>104</option>
+                    <option>Cake</option>
+                    <option>Yourator</option>
+                    <option>Company Site</option>
+                    <option>Referral</option>
+                    <option>Indeed</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select id="currentStatus" name="current_status"></select>
+                </label>
+              </div>
+              <div class="form-grid">
+                <label>
+                  Priority
+                  <select id="priority" name="priority">
+                    <option value="high">High</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label>
+                  Applied
+                  <input id="appliedAt" name="applied_at" type="date" />
+                </label>
+              </div>
+              <label>
+                Notes
+                <textarea id="notes" name="notes" rows="4" placeholder="Follow-up notes, interview status, or next action"></textarea>
+              </label>
+              <button class="primary-button" type="submit">
+                <i data-lucide="plus" aria-hidden="true"></i>
+                Add Application
+              </button>
+            </form>
+
+            <form
+              class="application-form smart-import-form input-tab-panel"
+              id="pasteUpdateForm"
+              role="tabpanel"
+              aria-labelledby="smartImportTab"
+              data-input-panel="smart"
+              hidden
+            >
+              <input id="screenshotFile" type="file" accept="image/*" hidden />
+              <label>
+                Target application
+                <select id="pasteUpdateTarget">
+                  <option value="">Auto-detect from message</option>
                 </select>
               </label>
               <label>
-                Status
-                <select id="currentStatus" name="current_status"></select>
+                Paste text or image
+                <textarea
+                  id="pasteUpdateText"
+                  class="smart-paste-box"
+                  rows="8"
+                  placeholder="Paste a full email, job posting text, or screenshot image here. You can also drop an image file."
+                ></textarea>
               </label>
-            </div>
-            <div class="form-grid">
-              <label>
-                Priority
-                <select id="priority" name="priority">
-                  <option value="high">High</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </label>
-              <label>
-                Applied
-                <input id="appliedAt" name="applied_at" type="date" />
-              </label>
-            </div>
-            <label>
-              Notes
-              <textarea id="notes" name="notes" rows="4" placeholder="Follow-up notes, interview status, or next action"></textarea>
-            </label>
-            <button class="primary-button" type="submit">
-              <i data-lucide="plus" aria-hidden="true"></i>
-              Add Application
-            </button>
-          </form>
-
-          <div class="panel-divider"></div>
-
-          <div class="section-heading compact-section-heading">
-            <div>
-              <p class="eyebrow">Paste Update</p>
-              <h2>Status Parser</h2>
-            </div>
+              <div class="form-grid">
+                <button class="ghost-button" id="browseScreenshotButton" type="button">
+                  <i data-lucide="upload" aria-hidden="true"></i>
+                  Choose Image
+                </button>
+                <button class="ghost-button" id="clearScreenshotImportButton" type="button">
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                  Clear Input
+                </button>
+              </div>
+              <button class="ghost-button" type="submit">
+                <i data-lucide="scan-text" aria-hidden="true"></i>
+                Analyze Input
+              </button>
+              <p class="parser-result" id="parserResult">Paste text or an image to detect a status update or fill the form.</p>
+            </form>
           </div>
-          <form class="application-form" id="pasteUpdateForm">
-            <label>
-              Target application
-              <select id="pasteUpdateTarget">
-                <option value="">Auto-detect from message</option>
-              </select>
-            </label>
-            <label>
-              Email or message text
-              <textarea
-                id="pasteUpdateText"
-                rows="5"
-                placeholder="Paste a rejection, offer, or interview update email here"
-              ></textarea>
-            </label>
-            <button class="ghost-button" type="submit">
-              <i data-lucide="scan-text" aria-hidden="true"></i>
-              Parse Update
-            </button>
-            <p class="parser-result" id="parserResult">Matches company names and status keywords locally.</p>
-          </form>
-
-          <div class="panel-divider"></div>
-
-          <div class="control-actions">
+          <div class="control-actions input-footer-actions">
             <button class="ghost-button" id="resetDemoButton" type="button">
               <i data-lucide="rotate-ccw" aria-hidden="true"></i>
               Reset Demo
@@ -146,11 +187,11 @@
           </div>
         </aside>
 
-        <section class="workflow-panel" aria-label="Kanban board">
+        <section class="workflow-panel" aria-label="Application workflow board">
           <div class="section-heading kanban-heading">
             <div>
               <p class="eyebrow">Workflow</p>
-              <h2>Application Kanban</h2>
+              <h2>Application Workflow</h2>
             </div>
             <div class="summary-strip" aria-label="Workflow summary">
               <span><strong id="trackerTotal">--</strong> records</span>

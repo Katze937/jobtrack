@@ -167,6 +167,8 @@ async function resetDemo() {
     document.querySelector("#applicationForm").reset();
     document.querySelector("#pasteUpdateForm").reset();
     resetParserResult();
+    resetSmartImport();
+    activateInputTab("manual");
     populateStatusSelect(document.querySelector("#currentStatus"), "applied");
     renderTracker();
     return;
@@ -182,12 +184,26 @@ function initializeTrackerPage() {
   const pasteUpdateForm = document.querySelector("#pasteUpdateForm");
   const editForm = document.querySelector("#editApplicationForm");
   const modal = document.querySelector("#editModal");
+  const screenshotFile = document.querySelector("#screenshotFile");
+  const smartPasteBox = document.querySelector("#pasteUpdateText");
 
   populateStatusSelect(formStatus, "applied");
+  setupInputTabs();
   resetButton.addEventListener("click", resetDemo);
   applicationForm.addEventListener("submit", handleApplicationSubmit);
-  pasteUpdateForm.addEventListener("submit", handlePasteUpdateSubmit);
+  pasteUpdateForm.addEventListener("submit", handleSmartImportSubmit);
   editForm.addEventListener("submit", handleEditSubmit);
+  document
+    .querySelector("#browseScreenshotButton")
+    .addEventListener("click", () => screenshotFile.click());
+  document
+    .querySelector("#clearScreenshotImportButton")
+    .addEventListener("click", resetSmartImport);
+  screenshotFile.addEventListener("change", handleScreenshotFileSelect);
+  smartPasteBox.addEventListener("paste", handleSmartInputPaste);
+  smartPasteBox.addEventListener("dragover", handleSmartInputDragOver);
+  smartPasteBox.addEventListener("dragleave", handleSmartInputDragLeave);
+  smartPasteBox.addEventListener("drop", handleSmartInputDrop);
   document.querySelector("#closeEditModal").addEventListener("click", closeEditModal);
   document.querySelector("#cancelEditModal").addEventListener("click", closeEditModal);
   document.querySelector("#editSourceUrl").addEventListener("input", (event) => {
@@ -209,6 +225,51 @@ function initializeTrackerPage() {
 
 function initializeAnalyticsPage() {
   renderAnalytics();
+}
+
+function setupInputTabs() {
+  const tabs = [...document.querySelectorAll("[data-input-tab]")];
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => {
+      activateInputTab(tab.dataset.inputTab);
+    });
+
+    tab.addEventListener("keydown", (event) => {
+      const keyMap = {
+        ArrowLeft: index - 1,
+        ArrowRight: index + 1,
+        Home: 0,
+        End: tabs.length - 1
+      };
+
+      if (!(event.key in keyMap)) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextIndex = (keyMap[event.key] + tabs.length) % tabs.length;
+      tabs[nextIndex].focus();
+      activateInputTab(tabs[nextIndex].dataset.inputTab);
+    });
+  });
+}
+
+function activateInputTab(tabName) {
+  const tabs = document.querySelectorAll("[data-input-tab]");
+  const panels = document.querySelectorAll("[data-input-panel]");
+
+  tabs.forEach((tab) => {
+    const isActive = tab.dataset.inputTab === tabName;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.inputPanel === tabName;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
 }
 
 function renderTracker() {
@@ -289,36 +350,435 @@ function handleEditSubmit(event) {
   closeEditModal();
 }
 
-function handlePasteUpdateSubmit(event) {
+function handleSmartImportSubmit(event) {
   event.preventDefault();
 
   const textArea = document.querySelector("#pasteUpdateText");
+  analyzeSmartInput(textArea.value, { clearTextOnStatusUpdate: true });
+}
+
+function analyzeSmartInput(rawText, options = {}) {
+  const textArea = document.querySelector("#pasteUpdateText");
   const targetSelect = document.querySelector("#pasteUpdateTarget");
   const result = document.querySelector("#parserResult");
-  const parsed = parseStatusUpdate(textArea.value, targetSelect.value);
+  const text = String(rawText || "").trim();
 
-  if (!parsed.status) {
-    result.textContent =
-      "Could not detect a status. Try text with declined, rejected, offer, interview, or withdrawn wording.";
+  if (!text) {
+    result.textContent = "Paste email text, job posting text, or an image before analyzing.";
     result.className = "parser-result parser-warning";
     return;
   }
 
-  if (!parsed.application) {
+  const parsed = parseStatusUpdate(text, targetSelect.value);
+
+  if (parsed.status && parsed.application) {
+    updateApplication(parsed.application.application_id, {
+      current_status: parsed.status,
+      notes: appendStatusNote(parsed.application.notes, parsed.status)
+    });
+
+    if (options.clearTextOnStatusUpdate) {
+      textArea.value = "";
+    }
+
+    targetSelect.value = "";
+    result.textContent = `Updated ${parsed.application.company_name} to ${getStatusLabel(parsed.status)}.`;
+    result.className = "parser-result parser-success";
+    return;
+  }
+
+  if (parsed.status && (targetSelect.value || parsed.detectedCompany)) {
     const companyText = parsed.detectedCompany ? ` for ${parsed.detectedCompany}` : "";
     result.textContent = `Detected ${getStatusLabel(parsed.status)}${companyText}, but no matching application record exists. Add it first or choose a target application from the dropdown.`;
     result.className = "parser-result parser-warning";
     return;
   }
 
-  updateApplication(parsed.application.application_id, {
-    current_status: parsed.status,
-    notes: appendStatusNote(parsed.application.notes, parsed.status)
-  });
-  textArea.value = "";
-  targetSelect.value = "";
-  result.textContent = `Updated ${parsed.application.company_name} to ${getStatusLabel(parsed.status)}.`;
-  result.className = "parser-result parser-success";
+  const parsedApplication = parseApplicationFromText(text, options.sourceName);
+
+  if (parsedApplication.company || parsedApplication.position || parsedApplication.sourceUrl) {
+    fillApplicationFormFromParsedText(parsedApplication);
+    activateInputTab("manual");
+    result.textContent = "Filled the Add Application form. Review the fields before adding the record.";
+    result.className = "parser-result parser-success";
+    return;
+  }
+
+  result.textContent =
+    "Could not detect a status update or enough application details. Try a full email, job posting, or clearer screenshot.";
+  result.className = "parser-result parser-warning";
+}
+
+function handleScreenshotFileSelect(event) {
+  const file = event.currentTarget.files?.[0];
+
+  if (file) {
+    processScreenshotFile(file);
+  }
+
+  event.currentTarget.value = "";
+}
+
+function handleSmartInputPaste(event) {
+  const imageItem = [...(event.clipboardData?.items || [])].find((item) =>
+    item.type.startsWith("image/")
+  );
+
+  if (!imageItem) {
+    return;
+  }
+
+  event.preventDefault();
+  processScreenshotFile(imageItem.getAsFile());
+}
+
+function handleSmartInputDragOver(event) {
+  if (!hasDroppedFiles(event.dataTransfer)) {
+    return;
+  }
+
+  event.preventDefault();
+  event.currentTarget.classList.add("is-over");
+}
+
+function handleSmartInputDragLeave(event) {
+  event.currentTarget.classList.remove("is-over");
+}
+
+function handleSmartInputDrop(event) {
+  if (!hasDroppedFiles(event.dataTransfer)) {
+    event.currentTarget.classList.remove("is-over");
+    return;
+  }
+
+  const file = [...(event.dataTransfer?.files || [])].find((item) =>
+    item.type.startsWith("image/")
+  );
+
+  event.preventDefault();
+  event.currentTarget.classList.remove("is-over");
+
+  if (!file) {
+    setSmartImportMessage("Drop a PNG, JPG, or other image file.", "parser-warning");
+    return;
+  }
+
+  processScreenshotFile(file);
+}
+
+function hasDroppedFiles(dataTransfer) {
+  return (
+    [...(dataTransfer?.files || [])].length > 0 ||
+    [...(dataTransfer?.items || [])].some((item) => item.kind === "file")
+  );
+}
+
+async function processScreenshotFile(file) {
+  if (!file?.type?.startsWith("image/")) {
+    setSmartImportMessage("Choose an image file such as PNG or JPG.", "parser-warning");
+    return;
+  }
+
+  if (!window.Tesseract?.recognize) {
+    setSmartImportMessage(
+      "OCR library is not available. Check the network connection and reload the page.",
+      "parser-warning"
+    );
+    return;
+  }
+
+  const pasteBox = document.querySelector("#pasteUpdateText");
+  pasteBox.classList.add("is-busy");
+  setSmartImportMessage("Reading screenshot text locally in your browser...", "");
+
+  try {
+    const result = await window.Tesseract.recognize(file, "eng", {
+      logger: (progress) => {
+        if (progress.status === "recognizing text") {
+          setSmartImportMessage(
+            `Reading screenshot text... ${Math.round(progress.progress * 100)}%`,
+            ""
+          );
+        }
+      }
+    });
+    const ocrText = result.data?.text?.trim() || "";
+
+    pasteBox.value = ocrText;
+
+    if (!ocrText) {
+      setSmartImportMessage("No readable text was detected in this image.", "parser-warning");
+      return;
+    }
+
+    analyzeSmartInput(ocrText, { sourceName: file.name, clearTextOnStatusUpdate: false });
+  } catch (error) {
+    console.error(error);
+    setSmartImportMessage("OCR failed. Try a clearer screenshot or paste the text manually.", "parser-warning");
+  } finally {
+    pasteBox.classList.remove("is-busy");
+  }
+}
+
+function parseApplicationFromText(rawText, sourceName = "") {
+  const text = String(rawText || "");
+  const status = detectApplicationStatusFromText(text);
+
+  return {
+    company: extractCompanyFromApplicationText(text),
+    position: extractPositionFromApplicationText(text),
+    platform: detectPlatformFromText(`${text}\n${sourceName}`),
+    status,
+    sourceUrl: extractFirstUrl(text),
+    notes: createOcrNote(text)
+  };
+}
+
+function fillApplicationFormFromParsedText(parsed) {
+  if (parsed.company) {
+    document.querySelector("#companyName").value = parsed.company;
+  }
+
+  if (parsed.position) {
+    document.querySelector("#positionTitle").value = parsed.position;
+  }
+
+  if (parsed.sourceUrl) {
+    document.querySelector("#sourceUrl").value = parsed.sourceUrl;
+  }
+
+  document.querySelector("#platform").value = parsed.platform;
+  document.querySelector("#currentStatus").value = parsed.status;
+
+  if (parsed.status !== "saved" && !document.querySelector("#appliedAt").value) {
+    document.querySelector("#appliedAt").value = toIsoDate(new Date());
+  }
+
+  const notes = document.querySelector("#notes");
+  notes.value = parsed.notes;
+}
+
+function detectApplicationStatusFromText(rawText) {
+  const text = String(rawText || "").toLowerCase();
+
+  if (
+    [
+      "decided not to move forward",
+      "will not be moving forward",
+      "not move forward",
+      "not selected",
+      "not successful",
+      "no longer under consideration",
+      "pursue other candidates",
+      "application declined",
+      "rejected"
+    ].some((keyword) => text.includes(keyword))
+  ) {
+    return "rejected";
+  }
+
+  if (
+    [
+      "offer letter",
+      "employment offer",
+      "extend an offer",
+      "pleased to offer",
+      "would like to offer",
+      "congratulations on your offer"
+    ].some((keyword) => text.includes(keyword))
+  ) {
+    return "offer";
+  }
+
+  if (["withdraw your application", "application withdrawn", "withdrawn"].some((keyword) => text.includes(keyword))) {
+    return "withdrawn";
+  }
+
+  if (
+    [
+      "invite you to interview",
+      "schedule an interview",
+      "technical interview",
+      "technical screen",
+      "next round"
+    ].some((keyword) => text.includes(keyword))
+  ) {
+    return "interview";
+  }
+
+  if (["screening call", "phone screen", "recruiter screen", "initial call"].some((keyword) => text.includes(keyword))) {
+    return "screening";
+  }
+
+  if (
+    [
+      "application submitted",
+      "applied",
+      "you applied",
+      "submitted application",
+      "successfully submitted",
+      "thank you for applying"
+    ].some((keyword) => text.includes(keyword))
+  ) {
+    return "applied";
+  }
+
+  if (["saved job", "saved", "save job"].some((keyword) => text.includes(keyword))) {
+    return "saved";
+  }
+
+  return "applied";
+}
+
+function extractCompanyFromApplicationText(rawText) {
+  const existingCandidate = extractCompanyFromText(rawText);
+
+  if (existingCandidate) {
+    return existingCandidate;
+  }
+
+  const text = normalizeOcrText(rawText);
+  const patterns = [
+    /company\s*[:\-]\s*([A-Z][A-Za-z0-9&'’., -]{1,70})/i,
+    /employer\s*[:\-]\s*([A-Z][A-Za-z0-9&'’., -]{1,70})/i,
+    /hiring\s+company\s*[:\-]\s*([A-Z][A-Za-z0-9&'’., -]{1,70})/i,
+    /\bat\s+([A-Z][A-Za-z0-9&'’., -]{1,70})(?=\s+[-|]\s+|$)/i,
+    /^([A-Z][A-Za-z0-9&'’., -]{1,70})\s+(?:careers|jobs)$/im
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match?.[1]) {
+      return cleanCompanyCandidate(match[1]);
+    }
+  }
+
+  const position = normalizeForMatch(extractPositionFromApplicationText(text));
+  const excludedLineKeywords =
+    /(linkedin|indeed|easy apply|apply now|application submitted|submitted|saved|screening|interview|offer|rejected|withdrawn|remote|hybrid|full-time|part-time|contract|salary|benefits|description|requirements|https?:\/\/)/i;
+  const roleKeywords =
+    /(engineer|developer|designer|analyst|manager|specialist|consultant|intern|scientist|architect|administrator|coordinator|associate|frontend|front-end|backend|back-end|full[- ]stack|software|data|product|qa|quality assurance|devops)/i;
+  const standaloneCompanyLine = text
+    .split("\n")
+    .map((line) => cleanCompanyCandidate(line))
+    .find((line) => {
+      const normalizedLine = normalizeForMatch(line);
+      return (
+        line.length >= 2 &&
+        line.length <= 70 &&
+        normalizedLine &&
+        normalizedLine !== position &&
+        !excludedLineKeywords.test(line) &&
+        !roleKeywords.test(line) &&
+        /[A-Za-z]/.test(line)
+      );
+    });
+
+  if (standaloneCompanyLine) {
+    return standaloneCompanyLine;
+  }
+
+  return "";
+}
+
+function extractPositionFromApplicationText(rawText) {
+  const text = normalizeOcrText(rawText);
+  const roleMatch = text.match(
+    /(?:applying|applied|application)\s+(?:to|for).{0,30}?\s*([A-Z][A-Za-z0-9+/&,.()'’ -]{3,90})\s+(?:role|position|job)\s+(?:at|with)\s+/i
+  );
+
+  if (roleMatch?.[1]) {
+    return cleanPositionCandidate(roleMatch[1]);
+  }
+
+  const labelledMatch = text.match(
+    /(?:job title|position|role)\s*[:\-]\s*([A-Z][A-Za-z0-9+/&,.()'’ -]{3,90})/i
+  );
+
+  if (labelledMatch?.[1]) {
+    return cleanPositionCandidate(labelledMatch[1]);
+  }
+
+  const jobTitleKeywords =
+    /(engineer|developer|designer|analyst|manager|specialist|consultant|intern|scientist|architect|administrator|coordinator|associate|frontend|front-end|backend|back-end|full[- ]stack|software|data|product|qa|quality assurance|devops)/i;
+  const excludedKeywords =
+    /(linkedin|indeed|easy apply|apply now|posted|applicants|company|about|saved|share|salary|benefits|description|requirements)/i;
+  const lines = text
+    .split("\n")
+    .map((line) => cleanPositionCandidate(line))
+    .filter((line) => line.length >= 4 && line.length <= 90);
+  const titleLine = lines.find(
+    (line) => jobTitleKeywords.test(line) && !excludedKeywords.test(line)
+  );
+
+  return titleLine || "";
+}
+
+function detectPlatformFromText(rawText) {
+  const text = String(rawText || "").toLowerCase();
+
+  if (text.includes("linkedin")) return "LinkedIn";
+  if (text.includes("104.com") || text.includes("104 job") || text.includes("104")) return "104";
+  if (text.includes("cake.me") || text.includes("cake")) return "Cake";
+  if (text.includes("yourator")) return "Yourator";
+  if (text.includes("indeed")) return "Indeed";
+  if (text.includes("referral")) return "Referral";
+  return "Company Site";
+}
+
+function extractFirstUrl(rawText) {
+  const match = String(rawText || "").match(/https?:\/\/[^\s"'<>]+/i);
+  return match ? match[0].replace(/[).,;]+$/g, "") : "";
+}
+
+function createOcrNote(rawText) {
+  const today = toIsoDate(new Date());
+  const compactText = normalizeOcrText(rawText).replace(/\n{3,}/g, "\n\n").slice(0, 600);
+  return `Imported from Smart Import on ${today}.\n\nSource excerpt:\n${compactText}`;
+}
+
+function normalizeOcrText(rawText) {
+  return String(rawText || "")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+function cleanPositionCandidate(value) {
+  return String(value || "")
+    .replace(/^[^\w]+|[^\w.)]+$/g, "")
+    .replace(/^(?:the|a|an)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resetSmartImport() {
+  const fileInput = document.querySelector("#screenshotFile");
+  const pasteBox = document.querySelector("#pasteUpdateText");
+
+  if (fileInput) {
+    fileInput.value = "";
+  }
+
+  if (pasteBox) {
+    pasteBox.value = "";
+    pasteBox.classList.remove("is-busy", "is-over");
+  }
+
+  setSmartImportMessage("Paste text or an image to detect a status update or fill the form.", "");
+}
+
+function setSmartImportMessage(message, className) {
+  const result = document.querySelector("#parserResult");
+
+  if (!result) {
+    return;
+  }
+
+  result.textContent = message;
+  result.className = `parser-result${className ? ` ${className}` : ""}`;
 }
 
 function resetParserResult() {
@@ -328,7 +788,7 @@ function resetParserResult() {
     return;
   }
 
-  result.textContent = "Matches company names and status keywords locally.";
+  result.textContent = "Paste text or an image to detect a status update or fill the form.";
   result.className = "parser-result";
 }
 
